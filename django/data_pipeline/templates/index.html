@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>System Monitorowania Ruchu Lotniczego i Pogody</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js CDN do interaktywnych wykresów -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans">
+
+  <!-- Pasek nawigacyjny -->
+  <header class="bg-slate-800/80 backdrop-blur border-b border-slate-700 sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="p-2 bg-indigo-600 rounded-lg text-white shadow-lg shadow-indigo-500/30">
+          <i class="fa-solid fa-plane-departure text-xl"></i>
+        </div>
+        <div>
+          <h1 class="font-bold text-lg leading-tight tracking-wide">AeroWeather Pipeline</h1>
+          <p class="text-xs text-slate-400">Warstwa prezentacji danych serving/gold</p>
+        </div>
+      </div>
+      
+      <div class="flex items-center space-x-4">
+        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-emerald-950 text-emerald-400 border border-emerald-800">
+          <span class="w-2 h-2 mr-2 bg-emerald-400 rounded-full animate-pulse"></span>
+          Potok: Sprawny (Testy 5/5)
+        </span>
+        <button onclick="window.location.reload();" class="px-3 py-1.5 text-xs font-semibold bg-slate-700 hover:bg-slate-600 active:scale-95 transition rounded-md border border-slate-600 flex items-center gap-1.5 text-slate-200">
+          <i class="fa-solid fa-arrows-rotate text-xs"></i>
+          Odśwież
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Główny kontener danych -->
+  <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+    
+    <!-- Karty wskaźników KPI -->
+    <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      <!-- KPI 1 -->
+      <div class="bg-slate-800/60 p-5 rounded-xl border border-slate-700/80 hover:border-slate-600 transition shadow-sm">
+        <div class="flex justify-between items-start">
+          <span class="text-xs uppercase font-semibold text-slate-400">Przeanalizowane Loty</span>
+          <span class="p-2 bg-indigo-500/10 text-indigo-400 rounded-md"><i class="fa-solid fa-plane"></i></span>
+        </div>
+        <div class="mt-4 flex items-baseline gap-2">
+          
+          <span class="text-xs text-emerald-400 font-medium">+100% z API</span>
+        </div>
+        <p class="text-xs text-slate-400 mt-1">Zarejestrowane w bazie danych</p>
+      </div>
+
+      <!-- KPI 2 -->
+      <div class="bg-slate-800/60 p-5 rounded-xl border border-slate-700/80 hover:border-slate-600 transition shadow-sm">
+        <div class="flex justify-between items-start">
+          <span class="text-xs uppercase font-semibold text-slate-400">Średnie Opóźnienie</span>
+          <span class="p-2 bg-amber-500/10 text-amber-400 rounded-md"><i class="fa-solid fa-clock"></i></span>
+        </div>
+        <div class="mt-4 flex items-baseline gap-2">
+          
+          <span class="text-sm font-semibold text-slate-400">min</span>
+        </div>
+        <p class="text-xs text-amber-400/90 mt-1"><i class="fa-solid fa-triangle-exclamation mr-1"></i>Korelacja z wiatrem &gt; 35 km/h</p>
+      </div>
+
+      <!-- KPI 3 -->
+      <div class="bg-slate-800/60 p-5 rounded-xl border border-slate-700/80 hover:border-slate-600 transition shadow-sm">
+        <div class="flex justify-between items-start">
+          <span class="text-xs uppercase font-semibold text-slate-400">Śr. Temp. na Lotniskach</span>
+          <span class="p-2 bg-sky-500/10 text-sky-400 rounded-md"><i class="fa-solid fa-temperature-half"></i></span>
+        </div>
+        <div class="mt-4 flex items-baseline gap-2">
+          
+          <span class="text-sm font-semibold text-slate-400">°C</span>
+        </div>
+        <p class="text-xs text-slate-400 mt-1">Stacje: OKC, DFW, ORD</p>
+      </div>
+
+      <!-- KPI 4 -->
+      <div class="bg-slate-800/60 p-5 rounded-xl border border-slate-700/80 hover:border-slate-600 transition shadow-sm">
+        <div class="flex justify-between items-start">
+          <span class="text-xs uppercase font-semibold text-slate-400">Ostatni Przebieg Potoku</span>
+          <span class="p-2 bg-emerald-500/10 text-emerald-400 rounded-md"><i class="fa-solid fa-database"></i></span>
+        </div>
+        <div class="mt-4 flex items-baseline gap-2">
+          
+        </div>
+        <p class="text-xs text-emerald-400 mt-1">Warstwa `serving` zaktualizowana</p>
+      </div>
+    </section>
+
+    <!-- Sekcja Wykresów -->
+    <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      
+      <!-- Wykres 1: Opóźnienia vs Prędkość wiatru -->
+      <div class="bg-slate-800/60 p-6 rounded-xl border border-slate-700/80">
+        <div class="flex justify-between items-center mb-4">
+          <div>
+            <h2 class="text-base font-semibold">Korelacja: Opóźnienia a Wiatr</h2>
+            <p class="text-xs text-slate-400">Wpływ porywów wiatru na opóźnienia operacji (minuty)</p>
+          </div>
+          <span class="text-xs px-2.5 py-1 bg-slate-700 rounded-md text-slate-300">Wymiar: Czas (H)</span>
+        </div>
+        <div class="h-64 relative">
+          <canvas id="delayWeatherChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Wykres 2: Rozkład statusów lotów -->
+      <div class="bg-slate-800/60 p-6 rounded-xl border border-slate-700/80">
+        <div class="flex justify-between items-center mb-4">
+          <div>
+            <h2 class="text-base font-semibold">Punktualność Połączeń</h2>
+            <p class="text-xs text-slate-400">Rozkład operacji lotniczych według kategorii opóźnienia</p>
+          </div>
+          <span class="text-xs px-2.5 py-1 bg-slate-700 rounded-md text-slate-300">Agregacja Gold</span>
+        </div>
+        <div class="h-64 relative flex items-center justify-center">
+          <canvas id="flightStatusChart"></canvas>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- Tabela Danych (Podgląd warstwy Serving) -->
+    <section class="bg-slate-800/60 rounded-xl border border-slate-700/80 overflow-hidden">
+      <div class="px-6 py-4 border-b border-slate-700 flex justify-between items-center">
+        <div>
+          <h2 class="text-base font-semibold">Ostatnie Przetworzone Rekordy</h2>
+          <p class="text-xs text-slate-400">Podgląd złączonych danych pogodowych i lotniczych</p>
+        </div>
+        <span class="text-xs text-slate-400">Limit: 5 wierszy</span>
+      </div>
+      
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm text-slate-300">
+          <thead class="bg-slate-900/60 text-xs uppercase text-slate-400 font-semibold border-b border-slate-700">
+            <tr>
+              <th scope="col" class="px-6 py-3">ID Lotu</th>
+              <th scope="col" class="px-6 py-3">Trasa</th>
+              <th scope="col" class="px-6 py-3">Czas Wylotu</th>
+              <th scope="col" class="px-6 py-3">Temperatura</th>
+              <th scope="col" class="px-6 py-3">Wiatr (km/h)</th>
+              <th scope="col" class="px-6 py-3">Opóźnienie</th>
+              <th scope="col" class="px-6 py-3">Status</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-700/60 font-mono text-xs">
+            {% if table_rows %}
+              {% for row in table_rows %}
+              <tr class="hover:bg-slate-700/30 transition">
+                <td class="px-6 py-3.5 font-bold text-indigo-400">{{ row.flight_id }}</td>
+                <td class="px-6 py-3.5">{{ row.route }}</td>
+                <td class="px-6 py-3.5 text-slate-400">{{ row.departure_time }}</td>
+                <td class="px-6 py-3.5">{{ row.temp }}°C</td>
+                <td class="px-6 py-3.5">{{ row.wind_speed }} km/h</td>
+                <td class="px-6 py-3.5">{{ row.delay_minutes }} min</td>
+                <td class="px-6 py-3.5">
+                  {% if row.delay_minutes > 15 %}
+                    <span class="px-2 py-0.5 rounded text-[11px] bg-amber-900/50 text-amber-300 border border-amber-700/50">Opóźniony</span>
+                  {% else %}
+                    <span class="px-2 py-0.5 rounded text-[11px] bg-emerald-900/50 text-emerald-300 border border-emerald-700/50">Na czas</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            {% else %}
+              <!-- Domyślne dane demonstracyjne, jeśli backend jeszcze ich nie przekazał -->
+              <tr class="hover:bg-slate-700/30 transition">
+                <td class="px-6 py-3.5 font-bold text-indigo-400">AA1042</td>
+                <td class="px-6 py-3.5">OKC &rarr; DFW</td>
+                <td class="px-6 py-3.5 text-slate-400">14:00</td>
+                <td class="px-6 py-3.5">21.4°C</td>
+                <td class="px-6 py-3.5">18.2 km/h</td>
+                <td class="px-6 py-3.5">0 min</td>
+                <td class="px-6 py-3.5">
+                  <span class="px-2 py-0.5 rounded text-[11px] bg-emerald-900/50 text-emerald-300 border border-emerald-700/50">Na czas</span>
+                </td>
+              </tr>
+              <tr class="hover:bg-slate-700/30 transition">
+                <td class="px-6 py-3.5 font-bold text-indigo-400">UA2415</td>
+                <td class="px-6 py-3.5">OKC &rarr; ORD</td>
+                <td class="px-6 py-3.5 text-slate-400">15:30</td>
+                <td class="px-6 py-3.5">16.8°C</td>
+                <td class="px-6 py-3.5">38.5 km/h</td>
+                <td class="px-6 py-3.5">32 min</td>
+                <td class="px-6 py-3.5">
+                  <span class="px-2 py-0.5 rounded text-[11px] bg-amber-900/50 text-amber-300 border border-amber-700/50">Opóźniony</span>
+                </td>
+              </tr>
+              <tr class="hover:bg-slate-700/30 transition">
+                <td class="px-6 py-3.5 font-bold text-indigo-400">WN882</td>
+                <td class="px-6 py-3.5">OKC &rarr; DEN</td>
+                <td class="px-6 py-3.5 text-slate-400">17:15</td>
+                <td class="px-6 py-3.A5">19.1°C</td>
+                <td class="px-6 py-3.5">22.0 km/h</td>
+                <td class="px-6 py-3.5">4 min</td>
+                <td class="px-6 py-3.5">
+                  <span class="px-2 py-0.5 rounded text-[11px] bg-emerald-900/50 text-emerald-300 border border-emerald-700/50">Na czas</span>
+                </td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="border-t border-slate-800 bg-slate-900 text-slate-500 py-4 text-xs text-center">
+    Projekt zaliczeniowy z Inżynierii Danych &bull; Dashboard analityczny Flask &bull; Architektura trójwarstwowa
+  </footer>
+
+  <!-- Konfiguracja skryptów Chart.js -->
+  <script>
+    // Wykres liniowy: Opóźnienie vs Wiatr
+    const ctxDelay = document.getElementById('delayWeatherChart').getContext('2d');
+    new Chart(ctxDelay, {
+      type: 'line',
+      data: {
+        
+        datasets: [
+          {
+            label: 'Śr. Opóźnienie (min)',
+            
+            borderColor: '#f59e0b',
+            backgroundColor: 'rgba(245, 158, 11, 0.1)',
+            tension: 0.3,
+            fill: true
+          },
+          {
+            label: 'Porywy wiatru (km/h)',
+            
+            borderColor: '#38bdf8',
+            borderDash: [5, 5],
+            tension: 0.3
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { labels: { color: '#94a3b8' } }
+        },
+        scales: {
+          x: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } },
+          y: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } }
+        }
+      }
+    });
+
+    // Wykres kołowy / Doughnut: Punktualność
+    const ctxStatus = document.getElementById('flightStatusChart').getContext('2d');
+    new Chart(ctxStatus, {
+      type: 'doughnut',
+      data: {
+        labels: ['Na czas (<15 min)', 'Opóźnione (15-60 min)', 'Poważne opóźnienia (>60 min)'],
+        datasets: [{
+          
+          backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
+          borderWidth: 0
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { color: '#94a3b8', boxWidth: 12 } }
+        },
+        cutout: '70%'
+      }
+    });
+  </script>
+</body>
+</html>
