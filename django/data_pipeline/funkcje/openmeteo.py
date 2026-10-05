@@ -10,7 +10,7 @@ def fetch_and_save_raw_weather(
     latitude: float = 52.0,
     longitude: float = 20.0,
     start_date: str = "2023-01-01",
-    end_date: str = "2024-12-31",
+    end_date: str = "2026-10-05",
 ):
   """Pobieranie danych z openmeteo i raw_data do data_pipeline/raw/."""
   cache_session = requests_cache.CachedSession(".cache", expire_after=3600)

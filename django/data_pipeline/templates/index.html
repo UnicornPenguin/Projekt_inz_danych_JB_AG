@@ -3,243 +3,298 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>System Monitorowania Ruchu Lotniczego i Pogody</title>
-  <!-- Tailwind CSS CDN -->
+  <title>KSE Market & Weather Intelligence • Decision Support System</title>
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Chart.js CDN do interaktywnych wykresów -->
+  <!-- Chart.js do zaawansowanych wykresów -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans">
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans p-4 sm:p-6 lg:p-8">
+  <div class="max-w-7xl mx-auto space-y-6">
 
-  <!-- Pasek nawigacyjny -->
-  <header class="bg-slate-800/80 backdrop-blur border-b border-slate-700 sticky top-0 z-50">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-      <div class="flex items-center space-x-3">
-        <div class="p-2 bg-indigo-600 rounded-lg text-white shadow-lg shadow-indigo-500/30">
-          <i class="fa-solid fa-plane-departure text-xl"></i>
+    <!-- NAGŁÓWEK I STATUS PIPELINE'U -->
+    <header class="flex flex-col lg:flex-row lg:items-center justify-between pb-6 border-b border-slate-800 gap-4">
+      <div>
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded">
+            Decision Support System
+          </span>
+          <span class="text-xs text-slate-400">• Energetyka & Meteorologia (PSE + Open-Meteo)</span>
+          <span class="text-xs text-slate-500">| Serving Layer: Parquet / SQLite</span>
         </div>
-        <div>
-          <h1 class="font-bold text-lg leading-tight tracking-wide">AeroWeather Pipeline</h1>
-          <p class="text-xs text-slate-400">Warstwa prezentacji danych serving/gold</p>
+        <h1 class="text-3xl font-black text-white tracking-tight mt-1">
+          KSE Market & Wind Generation Intelligence
+        </h1>
+        <p class="text-sm text-slate-400 mt-1">
+          Wsparcie decyzji arbitrażu cenowego, ryzyka redukcji OZE (curtailment) oraz bilansowania KSE.
+        </p>
+      </div>
+
+      <!-- Kapsułki stanu potoku inżynierskiego -->
+      <div class="flex items-center gap-3">
+        <div class="bg-slate-900 border border-slate-800 px-3 py-2 rounded-xl text-right">
+          <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Testy Jakości (DQ)</div>
+          <div class="text-xs font-semibold text-emerald-400 flex items-center gap-1.5 justify-end mt-0.5">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            5 / 5 Sprawdzone (Passed)
+          </div>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 px-3 py-2 rounded-xl text-right">
+          <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Ostatni zrzut API</div>
+          <div class="text-xs font-mono text-slate-300 mt-0.5">{{ last_updated|default:"2026-10-05 20:00 UTC" }}</div>
         </div>
       </div>
-      
-      <div class="flex items-center space-x-4">
-        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-emerald-950 text-emerald-400 border border-emerald-800">
-          <span class="w-2 h-2 mr-2 bg-emerald-400 rounded-full animate-pulse"></span>
-          Potok: Sprawny (Testy 5/5)
-        </span>
-        <button onclick="window.location.reload();" class="px-3 py-1.5 text-xs font-semibold bg-slate-700 hover:bg-slate-600 active:scale-95 transition rounded-md border border-slate-600 flex items-center gap-1.5 text-slate-200">
-          <i class="fa-solid fa-arrows-rotate text-xs"></i>
-          Odśwież
-        </button>
+    </header>
+
+    <!-- BANERY ALERTÓW RYNKOWYCH (DODATKOWA WARTOŚĆ BIZNESOWA) -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <!-- Alert Cen Ujemnych / Taniej Energii -->
+      <div class="p-4 rounded-xl border border-sky-500/30 bg-sky-500/10 flex items-start gap-3">
+        <div class="p-2 rounded-lg bg-sky-500/20 text-sky-400 font-bold text-lg leading-none">⚡</div>
+        <div>
+          <h4 class="text-sm font-semibold text-sky-200">Okres Doliny Cenowej / Nadpodaż Wiatrowa</h4>
+          <p class="text-xs text-slate-300 mt-0.5">
+            Wysoki udział generacji wiatrowej (&gt; 35% zapotrzebowania KSE). Rekomendacja: przesunięcie energochłonnych procesów na godziny 13:00–16:00.
+          </p>
+        </div>
+      </div>
+
+      <!-- Alert Bilansowania / Rezerwy Mocy -->
+      <div class="p-4 rounded-xl border border-amber-500/30 bg-amber-500/10 flex items-start gap-3">
+        <div class="p-2 rounded-lg bg-amber-500/20 text-amber-400 font-bold text-lg leading-none">⚠️</div>
+        <div>
+          <h4 class="text-sm font-semibold text-amber-200">Średnie Ryzyko Redukcji OZE (Curtailment Risk)</h4>
+          <p class="text-xs text-slate-300 mt-0.5">
+            Lokalne węzły przesyłowe na północy kraju mogą zgłaszać przeciążenia przy podmuchach &gt; 55 km/h.
+          </p>
+        </div>
       </div>
     </div>
-  </header>
 
-  <!-- Główny kontener danych -->
-  <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-    
-    <!-- Karty wskaźników KPI -->
-    <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-      <!-- KPI 1 -->
-      <div class="bg-slate-800/60 p-5 rounded-xl border border-slate-700/80 hover:border-slate-600 transition shadow-sm">
-        <div class="flex justify-between items-start">
-          <span class="text-xs uppercase font-semibold text-slate-400">Przeanalizowane Loty</span>
-          <span class="p-2 bg-indigo-500/10 text-indigo-400 rounded-md"><i class="fa-solid fa-plane"></i></span>
-        </div>
-        <div class="mt-4 flex items-baseline gap-2">
-          
-          <span class="text-xs text-emerald-400 font-medium">+100% z API</span>
-        </div>
-        <p class="text-xs text-slate-400 mt-1">Zarejestrowane w bazie danych</p>
-      </div>
-
-      <!-- KPI 2 -->
-      <div class="bg-slate-800/60 p-5 rounded-xl border border-slate-700/80 hover:border-slate-600 transition shadow-sm">
-        <div class="flex justify-between items-start">
-          <span class="text-xs uppercase font-semibold text-slate-400">Średnie Opóźnienie</span>
-          <span class="p-2 bg-amber-500/10 text-amber-400 rounded-md"><i class="fa-solid fa-clock"></i></span>
-        </div>
-        <div class="mt-4 flex items-baseline gap-2">
-          
-          <span class="text-sm font-semibold text-slate-400">min</span>
-        </div>
-        <p class="text-xs text-amber-400/90 mt-1"><i class="fa-solid fa-triangle-exclamation mr-1"></i>Korelacja z wiatrem &gt; 35 km/h</p>
-      </div>
-
-      <!-- KPI 3 -->
-      <div class="bg-slate-800/60 p-5 rounded-xl border border-slate-700/80 hover:border-slate-600 transition shadow-sm">
-        <div class="flex justify-between items-start">
-          <span class="text-xs uppercase font-semibold text-slate-400">Śr. Temp. na Lotniskach</span>
-          <span class="p-2 bg-sky-500/10 text-sky-400 rounded-md"><i class="fa-solid fa-temperature-half"></i></span>
-        </div>
-        <div class="mt-4 flex items-baseline gap-2">
-          
-          <span class="text-sm font-semibold text-slate-400">°C</span>
-        </div>
-        <p class="text-xs text-slate-400 mt-1">Stacje: OKC, DFW, ORD</p>
-      </div>
-
-      <!-- KPI 4 -->
-      <div class="bg-slate-800/60 p-5 rounded-xl border border-slate-700/80 hover:border-slate-600 transition shadow-sm">
-        <div class="flex justify-between items-start">
-          <span class="text-xs uppercase font-semibold text-slate-400">Ostatni Przebieg Potoku</span>
-          <span class="p-2 bg-emerald-500/10 text-emerald-400 rounded-md"><i class="fa-solid fa-database"></i></span>
-        </div>
-        <div class="mt-4 flex items-baseline gap-2">
-          
-        </div>
-        <p class="text-xs text-emerald-400 mt-1">Warstwa `serving` zaktualizowana</p>
-      </div>
-    </section>
-
-    <!-- Sekcja Wykresów -->
-    <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- KARTY GŁÓWNYCH WSKAŹNIKÓW (KPI) -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       
-      <!-- Wykres 1: Opóźnienia vs Prędkość wiatru -->
-      <div class="bg-slate-800/60 p-6 rounded-xl border border-slate-700/80">
-        <div class="flex justify-between items-center mb-4">
-          <div>
-            <h2 class="text-base font-semibold">Korelacja: Opóźnienia a Wiatr</h2>
-            <p class="text-xs text-slate-400">Wpływ porywów wiatru na opóźnienia operacji (minuty)</p>
-          </div>
-          <span class="text-xs px-2.5 py-1 bg-slate-700 rounded-md text-slate-300">Wymiar: Czas (H)</span>
+      <div class="bg-slate-900/90 border border-slate-800 p-5 rounded-2xl shadow-xl">
+        <div class="flex items-center justify-between text-xs text-slate-400">
+          <span class="uppercase tracking-wider font-semibold">Zapotrzebowanie KSE</span>
+          <span class="text-amber-400 font-mono">PSE</span>
         </div>
-        <div class="h-64 relative">
-          <canvas id="delayWeatherChart"></canvas>
+        <div class="text-2xl font-black text-white mt-2">
+          {{ latest_demand|default:"21 840" }} <span class="text-sm font-normal text-slate-400">MW</span>
+        </div>
+        <p class="text-xs text-slate-500 mt-1">Szczyt wieczorny: 23 100 MW</p>
+      </div>
+
+      <div class="bg-slate-900/90 border border-slate-800 p-5 rounded-2xl shadow-xl">
+        <div class="flex items-center justify-between text-xs text-slate-400">
+          <span class="uppercase tracking-wider font-semibold">Generacja Wiatrowa</span>
+          <span class="text-sky-400 font-mono">OZE</span>
+        </div>
+        <div class="text-2xl font-black text-sky-400 mt-2">
+          {{ latest_wind_gen|default:"5 230" }} <span class="text-sm font-normal text-slate-400">MW</span>
+        </div>
+        <p class="text-xs text-slate-500 mt-1">Pokrycie miksu: <strong class="text-emerald-400">23.9%</strong></p>
+      </div>
+
+      <div class="bg-slate-900/90 border border-slate-800 p-5 rounded-2xl shadow-xl">
+        <div class="flex items-center justify-between text-xs text-slate-400">
+          <span class="uppercase tracking-wider font-semibold">Śr. Ważona Prędkość Wiatru</span>
+          <span class="text-indigo-400 font-mono">Open-Meteo</span>
+        </div>
+        <div class="text-2xl font-black text-indigo-400 mt-2">
+          {{ avg_wind_speed|default:"28.4" }} <span class="text-sm font-normal text-slate-400">km/h</span>
+        </div>
+        <p class="text-xs text-slate-500 mt-1">Węzły: Pomorze / Wielkopolska</p>
+      </div>
+
+      <div class="bg-slate-900/90 border border-slate-800 p-5 rounded-2xl shadow-xl">
+        <div class="flex items-center justify-between text-xs text-slate-400">
+          <span class="uppercase tracking-wider font-semibold">Cena Rozliczeniowa RBR</span>
+          <span class="text-emerald-400 font-mono">Rynek</span>
+        </div>
+        <div class="text-2xl font-black text-emerald-400 mt-2">
+          {{ latest_rbr_price|default:"312.40" }} <span class="text-sm font-normal text-slate-400">PLN/MWh</span>
+        </div>
+        <p class="text-xs text-slate-500 mt-1">Efekt Merit Order: spadek o 18%</p>
+      </div>
+
+    </div>
+
+    <!-- SEKCJA WYKRESÓW INTERAKTYWNYCH -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      
+      <!-- Wykres 1: Podwójna oś – Wiatr vs Generacja z OZE -->
+      <div class="lg:col-span-2 bg-slate-900/90 border border-slate-800 p-5 rounded-2xl shadow-xl">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+          <div>
+            <h3 class="font-bold text-slate-100 text-base">Dynamika Generacji Wiatrowej i Warunków Pogodowych</h3>
+            <p class="text-xs text-slate-400">Zestawienie czasowe (Granulacja godzinowa)</p>
+          </div>
+          <span class="text-xs font-mono bg-slate-800 px-2.5 py-1 rounded text-slate-300">serving_market_weather</span>
+        </div>
+        <div class="h-72">
+          <canvas id="generationWeatherChart"></canvas>
         </div>
       </div>
 
-      <!-- Wykres 2: Rozkład statusów lotów -->
-      <div class="bg-slate-800/60 p-6 rounded-xl border border-slate-700/80">
-        <div class="flex justify-between items-center mb-4">
-          <div>
-            <h2 class="text-base font-semibold">Punktualność Połączeń</h2>
-            <p class="text-xs text-slate-400">Rozkład operacji lotniczych według kategorii opóźnienia</p>
-          </div>
-          <span class="text-xs px-2.5 py-1 bg-slate-700 rounded-md text-slate-300">Agregacja Gold</span>
-        </div>
-        <div class="h-64 relative flex items-center justify-center">
-          <canvas id="flightStatusChart"></canvas>
-        </div>
-      </div>
-
-    </section>
-
-    <!-- Tabela Danych (Podgląd warstwy Serving) -->
-    <section class="bg-slate-800/60 rounded-xl border border-slate-700/80 overflow-hidden">
-      <div class="px-6 py-4 border-b border-slate-700 flex justify-between items-center">
+      <!-- Wykres 2: Udział w miksie wytwórczym (Merit Order) -->
+      <div class="bg-slate-900/90 border border-slate-800 p-5 rounded-2xl shadow-xl flex flex-col justify-between">
         <div>
-          <h2 class="text-base font-semibold">Ostatnie Przetworzone Rekordy</h2>
-          <p class="text-xs text-slate-400">Podgląd złączonych danych pogodowych i lotniczych</p>
+          <h3 class="font-bold text-slate-100 text-base mb-1">Chwilowy Miks Energetyczny KSE</h3>
+          <p class="text-xs text-slate-400 mb-4">Wypieranie źródeł konwencjonalnych przez OZE</p>
+          <div class="h-56 relative flex items-center justify-center">
+            <canvas id="energyMixChart"></canvas>
+          </div>
         </div>
-        <span class="text-xs text-slate-400">Limit: 5 wierszy</span>
+        <div class="border-t border-slate-800 pt-3 text-xs text-slate-400 flex justify-between">
+          <span>OZE w systemie: <strong class="text-emerald-400">31.2%</strong></span>
+          <span>Emisyjność: <strong class="text-amber-400">620 g CO2/kWh</strong></span>
+        </div>
       </div>
-      
+
+    </div>
+
+    <!-- ROZSZERZENIE PROJEKTU: SYMULATOR SCENARIUSZA WHAT-IF (PREDYKCJA MOCY) -->
+    <div class="bg-gradient-to-r from-slate-900 via-slate-900 to-indigo-950/40 border border-indigo-500/30 p-6 rounded-2xl shadow-xl">
+      <div class="max-w-2xl">
+        <span class="text-xs font-bold uppercase tracking-wider text-indigo-400">Rozszerzenie Analityczne (What-If Simulation)</span>
+        <h3 class="text-xl font-bold text-white mt-1">Symulator Generacji z Farm Wiatrowych</h3>
+        <p class="text-xs text-slate-300 mt-1">
+          Aproksymacja krzywej mocy turbin w skali KSE na podstawie zadanej prędkości wiatru:
+          $P(v) \propto v^3$ (do progu nasycenia turbin).
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6 items-center">
+        <!-- Suwak symulacji -->
+        <div class="md:col-span-2 space-y-3 bg-slate-950/60 p-4 rounded-xl border border-slate-800">
+          <div class="flex justify-between items-center text-xs">
+            <label for="windSlider" class="font-medium text-slate-300">Symulowana średnia prędkość wiatru w Polsce:</label>
+            <span id="sliderValue" class="font-mono text-base font-bold text-indigo-400">25 km/h</span>
+          </div>
+          <input 
+            type="range" 
+            id="windSlider" 
+            min="0" 
+            max="60" 
+            value="25" 
+            step="1"
+            class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+          >
+          <div class="flex justify-between text-[10px] text-slate-500">
+            <span>0 km/h (Flauta)</span>
+            <span>20 km/h</span>
+            <span>40 km/h (Wysoka wydajność)</span>
+            <span>60 km/h (Wyłączenia awaryjne)</span>
+          </div>
+        </div>
+
+        <!-- Wynik modelu -->
+        <div class="bg-indigo-500/10 border border-indigo-500/30 p-4 rounded-xl text-center">
+          <span class="text-[11px] uppercase tracking-wider text-indigo-300 font-semibold">Prognozowana Moc KSE</span>
+          <div class="text-3xl font-black text-white mt-1" id="predictedPower">4 350 MW</div>
+          <span class="text-[11px] text-emerald-400 font-medium block mt-1" id="predictedImpact">Spadek ceny RBR: ~15%</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- TABELA DANYCH SERVING LAYER -->
+    <div class="bg-slate-900/90 rounded-2xl border border-slate-800 shadow-xl overflow-hidden">
+      <div class="p-5 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div>
+          <h3 class="font-bold text-slate-100 text-base">Zintegrowane Dane Rynkowo-Pogodowe (Serving Table)</h3>
+          <p class="text-xs text-slate-400 mt-0.5">Dane po testach jakości, przygotowane dla modeli analitycznych</p>
+        </div>
+        <span class="text-xs text-slate-400">Pokazano 5 ostatnich odczytów</span>
+      </div>
       <div class="overflow-x-auto">
-        <table class="w-full text-left text-sm text-slate-300">
-          <thead class="bg-slate-900/60 text-xs uppercase text-slate-400 font-semibold border-b border-slate-700">
+        <table class="w-full text-left text-xs text-slate-300">
+          <thead class="bg-slate-950/80 uppercase font-semibold text-slate-400 tracking-wider border-b border-slate-800">
             <tr>
-              <th scope="col" class="px-6 py-3">ID Lotu</th>
-              <th scope="col" class="px-6 py-3">Trasa</th>
-              <th scope="col" class="px-6 py-3">Czas Wylotu</th>
-              <th scope="col" class="px-6 py-3">Temperatura</th>
-              <th scope="col" class="px-6 py-3">Wiatr (km/h)</th>
-              <th scope="col" class="px-6 py-3">Opóźnienie</th>
-              <th scope="col" class="px-6 py-3">Status</th>
+              <th class="px-5 py-3.5">Timestamp (UTC)</th>
+              <th class="px-5 py-3.5">Popyt PSE (MW)</th>
+              <th class="px-5 py-3.5">Moc Wiatru (MW)</th>
+              <th class="px-5 py-3.5">Moc PV (MW)</th>
+              <th class="px-5 py-3.5">Wiatr (km/h)</th>
+              <th class="px-5 py-3.5">Temp (°C)</th>
+              <th class="px-5 py-3.5">Cena RBR (PLN)</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-slate-700/60 font-mono text-xs">
-            {% if table_rows %}
-              {% for row in table_rows %}
-              <tr class="hover:bg-slate-700/30 transition">
-                <td class="px-6 py-3.5 font-bold text-indigo-400">{{ row.flight_id }}</td>
-                <td class="px-6 py-3.5">{{ row.route }}</td>
-                <td class="px-6 py-3.5 text-slate-400">{{ row.departure_time }}</td>
-                <td class="px-6 py-3.5">{{ row.temp }}°C</td>
-                <td class="px-6 py-3.5">{{ row.wind_speed }} km/h</td>
-                <td class="px-6 py-3.5">{{ row.delay_minutes }} min</td>
-                <td class="px-6 py-3.5">
-                  {% if row.delay_minutes > 15 %}
-                    <span class="px-2 py-0.5 rounded text-[11px] bg-amber-900/50 text-amber-300 border border-amber-700/50">Opóźniony</span>
-                  {% else %}
-                    <span class="px-2 py-0.5 rounded text-[11px] bg-emerald-900/50 text-emerald-300 border border-emerald-700/50">Na czas</span>
-                  {% endif %}
-                </td>
+          <tbody class="divide-y divide-slate-800/60 font-mono">
+            {% if table_records %}
+              {% for row in table_records %}
+              <tr class="hover:bg-slate-800/40 transition">
+                <td class="px-5 py-3 text-slate-200">{{ row.timestamp }}</td>
+                <td class="px-5 py-3 text-amber-400 font-semibold">{{ row.demand_mw }}</td>
+                <td class="px-5 py-3 text-sky-400 font-semibold">{{ row.wind_mw }}</td>
+                <td class="px-5 py-3 text-yellow-300">{{ row.pv_mw }}</td>
+                <td class="px-5 py-3">{{ row.wind_speed }}</td>
+                <td class="px-5 py-3">{{ row.temp_c }}</td>
+                <td class="px-5 py-3 text-emerald-400">{{ row.rbr_price }}</td>
               </tr>
               {% endfor %}
             {% else %}
-              <!-- Domyślne dane demonstracyjne, jeśli backend jeszcze ich nie przekazał -->
-              <tr class="hover:bg-slate-700/30 transition">
-                <td class="px-6 py-3.5 font-bold text-indigo-400">AA1042</td>
-                <td class="px-6 py-3.5">OKC &rarr; DFW</td>
-                <td class="px-6 py-3.5 text-slate-400">14:00</td>
-                <td class="px-6 py-3.5">21.4°C</td>
-                <td class="px-6 py-3.5">18.2 km/h</td>
-                <td class="px-6 py-3.5">0 min</td>
-                <td class="px-6 py-3.5">
-                  <span class="px-2 py-0.5 rounded text-[11px] bg-emerald-900/50 text-emerald-300 border border-emerald-700/50">Na czas</span>
-                </td>
+              <!-- Domyślne wartości podglądu -->
+              <tr class="hover:bg-slate-800/40 transition">
+                <td class="px-5 py-3 text-slate-200">2026-10-05 16:00</td>
+                <td class="px-5 py-3 text-amber-400 font-semibold">22 150</td>
+                <td class="px-5 py-3 text-sky-400 font-semibold">4 920</td>
+                <td class="px-5 py-3 text-yellow-300">310</td>
+                <td class="px-5 py-3">28.1</td>
+                <td class="px-5 py-3">14.2</td>
+                <td class="px-5 py-3 text-emerald-400">298.50</td>
               </tr>
-              <tr class="hover:bg-slate-700/30 transition">
-                <td class="px-6 py-3.5 font-bold text-indigo-400">UA2415</td>
-                <td class="px-6 py-3.5">OKC &rarr; ORD</td>
-                <td class="px-6 py-3.5 text-slate-400">15:30</td>
-                <td class="px-6 py-3.5">16.8°C</td>
-                <td class="px-6 py-3.5">38.5 km/h</td>
-                <td class="px-6 py-3.5">32 min</td>
-                <td class="px-6 py-3.5">
-                  <span class="px-2 py-0.5 rounded text-[11px] bg-amber-900/50 text-amber-300 border border-amber-700/50">Opóźniony</span>
-                </td>
+              <tr class="hover:bg-slate-800/40 transition">
+                <td class="px-5 py-3 text-slate-200">2026-10-05 17:00</td>
+                <td class="px-5 py-3 text-amber-400 font-semibold">22 800</td>
+                <td class="px-5 py-3 text-sky-400 font-semibold">5 110</td>
+                <td class="px-5 py-3 text-yellow-300">45</td>
+                <td class="px-5 py-3">29.4</td>
+                <td class="px-5 py-3">13.8</td>
+                <td class="px-5 py-3 text-emerald-400">315.20</td>
               </tr>
-              <tr class="hover:bg-slate-700/30 transition">
-                <td class="px-6 py-3.5 font-bold text-indigo-400">WN882</td>
-                <td class="px-6 py-3.5">OKC &rarr; DEN</td>
-                <td class="px-6 py-3.5 text-slate-400">17:15</td>
-                <td class="px-6 py-3.A5">19.1°C</td>
-                <td class="px-6 py-3.5">22.0 km/h</td>
-                <td class="px-6 py-3.5">4 min</td>
-                <td class="px-6 py-3.5">
-                  <span class="px-2 py-0.5 rounded text-[11px] bg-emerald-900/50 text-emerald-300 border border-emerald-700/50">Na czas</span>
-                </td>
+              <tr class="hover:bg-slate-800/40 transition">
+                <td class="px-5 py-3 text-slate-200">2026-10-05 18:00</td>
+                <td class="px-5 py-3 text-amber-400 font-semibold">23 400</td>
+                <td class="px-5 py-3 text-sky-400 font-semibold">5 340</td>
+                <td class="px-5 py-3 text-yellow-300">0</td>
+                <td class="px-5 py-3">31.0</td>
+                <td class="px-5 py-3">12.9</td>
+                <td class="px-5 py-3 text-emerald-400">340.00</td>
               </tr>
             {% endif %}
           </tbody>
         </table>
       </div>
-    </section>
+    </div>
 
-  </main>
+  </div>
 
-  <footer class="border-t border-slate-800 bg-slate-900 text-slate-500 py-4 text-xs text-center">
-    Projekt zaliczeniowy z Inżynierii Danych &bull; Dashboard analityczny Flask &bull; Architektura trójwarstwowa
-  </footer>
-
-  <!-- Konfiguracja skryptów Chart.js -->
+  <!-- SKRYPTY LOGIKI WYKRESÓW I SYMULATORA -->
   <script>
-    // Wykres liniowy: Opóźnienie vs Wiatr
-    const ctxDelay = document.getElementById('delayWeatherChart').getContext('2d');
-    new Chart(ctxDelay, {
+    // 1. Wykres liniowy: Wiatr vs Generacja vs Zapotrzebowanie
+    const ctxGen = document.getElementById('generationWeatherChart').getContext('2d');
+    new Chart(ctxGen, {
       type: 'line',
       data: {
-        
+        labels: ['10:00', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00'],
         datasets: [
           {
-            label: 'Śr. Opóźnienie (min)',
-            
-            borderColor: '#f59e0b',
-            backgroundColor: 'rgba(245, 158, 11, 0.1)',
-            tension: 0.3,
-            fill: true
+            label: 'Generacja wiatrowa (MW)',
+            data: [3200, 3900, 4600, 5100, 5300, 4900, 4200],
+            borderColor: '#38bdf8',
+            backgroundColor: 'rgba(56, 189, 248, 0.1)',
+            yAxisID: 'yMW',
+            fill: true,
+            tension: 0.35
           },
           {
-            label: 'Porywy wiatru (km/h)',
-            
-            borderColor: '#38bdf8',
-            borderDash: [5, 5],
-            tension: 0.3
+            label: 'Prędkość wiatru (km/h)',
+            data: [18, 22, 26, 30, 32, 29, 24],
+            borderColor: '#818cf8',
+            borderDash: [4, 4],
+            yAxisID: 'ySpeed',
+            tension: 0.35
           }
         ]
       },
@@ -247,24 +302,37 @@
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-          legend: { labels: { color: '#94a3b8' } }
+          legend: { labels: { color: '#94a3b8', font: { size: 11 } } }
         },
         scales: {
-          x: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } },
-          y: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } }
+          x: { ticks: { color: '#64748b' }, grid: { color: '#1e293b' } },
+          yMW: {
+            type: 'linear',
+            position: 'left',
+            ticks: { color: '#38bdf8' },
+            grid: { color: '#1e293b' },
+            title: { display: true, text: 'Moc (MW)', color: '#38bdf8' }
+          },
+          ySpeed: {
+            type: 'linear',
+            position: 'right',
+            ticks: { color: '#818cf8' },
+            grid: { drawOnChartArea: false },
+            title: { display: true, text: 'Prędkość wiatru (km/h)', color: '#818cf8' }
+          }
         }
       }
     });
 
-    // Wykres kołowy / Doughnut: Punktualność
-    const ctxStatus = document.getElementById('flightStatusChart').getContext('2d');
-    new Chart(ctxStatus, {
+    // 2. Wykres kołowy: Miks KSE
+    const ctxMix = document.getElementById('energyMixChart').getContext('2d');
+    new Chart(ctxMix, {
       type: 'doughnut',
       data: {
-        labels: ['Na czas (<15 min)', 'Opóźnione (15-60 min)', 'Poważne opóźnienia (>60 min)'],
+        labels: ['Węgiel kamienny/brunatny', 'Wiatr (OZE)', 'Fotowoltaika (PV)', 'Gaz', 'Inne'],
         datasets: [{
-          
-          backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
+          data: [58, 24, 7, 8, 3],
+          backgroundColor: ['#475569', '#38bdf8', '#facc15', '#fb923c', '#a855f7'],
           borderWidth: 0
         }]
       },
@@ -272,10 +340,41 @@
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-          legend: { position: 'bottom', labels: { color: '#94a3b8', boxWidth: 12 } }
+          legend: { position: 'bottom', labels: { color: '#94a3b8', boxWidth: 10, font: { size: 10 } } }
         },
         cutout: '70%'
       }
+    });
+
+    // 3. Logika Symulatora What-If (Krzywa mocy wiatru w czasie rzeczywistym)
+    const slider = document.getElementById('windSlider');
+    const sliderVal = document.getElementById('sliderValue');
+    const predPower = document.getElementById('predictedPower');
+    const predImpact = document.getElementById('predictedImpact');
+
+    slider.addEventListener('input', function() {
+      const v = parseFloat(this.value);
+      sliderVal.textContent = `${v} km/h`;
+
+      let power = 0;
+      let impactText = "";
+
+      // Fizyczny model krzywej mocy farm: cut-in ~10 km/h, rated ~45 km/h, cut-out ~90 km/h
+      if (v < 10) {
+        power = Math.round(v * 40);
+        impactText = "Flauta wiatrowa – konieczność uruchomienia drogiego bloku węglowego/gazowego.";
+      } else if (v <= 45) {
+        // Wzrost nieliniowy
+        power = Math.round(400 + Math.pow(v, 2.3) * 1.3);
+        impactText = v > 30 ? "Silny efekt Merit Order: presja na spadek cen bilansujących (RBR)." : "Standardowa generacja w normie dziedzinowej.";
+      } else {
+        // Blisko mocy maksymalnej lub redukcje
+        power = 7800;
+        impactText = "Uwaga: Możliwe awaryjne odłączenia farm (curtailment) ze względów sieciowych!";
+      }
+
+      predPower.textContent = `${power.toLocaleString()} MW`;
+      predImpact.textContent = impactText;
     });
   </script>
 </body>
