@@ -13,6 +13,7 @@ yesterday = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
 
 # 3. Działający endpoint API PSE (Rynkowa Cena Energii)
 endpoint = "rce-pln"
+endpoint = "ogr-oper"
 url = f"https://api.raporty.pse.pl/api/{endpoint}"
 
 params = {
