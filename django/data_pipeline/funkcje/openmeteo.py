@@ -13,7 +13,7 @@ def fetch_and_save_raw_weather(
 ):
     """Pobieranie danych co 15 minut z Open-Meteo i zapis do raw."""
 
-    # 1. Konfiguracja sesji
+    #Konfiguracja sesji
     cache_session = requests_cache.CachedSession(
         ".cache", expire_after=3600
     )
@@ -22,7 +22,7 @@ def fetch_and_save_raw_weather(
     )
     openmeteo = openmeteo_requests.Client(session=retry_session)
 
-    # 2. Parametry API
+    #Parametry API
     url = "https://historical-forecast-api.open-meteo.com/v1/forecast"
 
     variables = [
@@ -53,7 +53,7 @@ def fetch_and_save_raw_weather(
     responses = openmeteo.weather_api(url, params=params)
     response = responses[0]
 
-    # 3. Odczyt danych 15-minutowych
+    # dane 15-minutowe
     minutely_15 = response.Minutely15()
 
     dates = pd.date_range(
@@ -69,10 +69,10 @@ def fetch_and_save_raw_weather(
         inclusive="left",
     ).tz_convert("Europe/Warsaw")
 
-    # 4. Utworzenie DataFrame
+    # tworzenie DataFrame
     minutely_15_data = {"date": dates}
 
-    for i, variable in enumerate(variables):
+    for i, variable in enumerate(variables): # Zwracanie indeksów i wartości naraz
         minutely_15_data[variable] = (
             minutely_15.Variables(i).ValuesAsNumpy()
         )
@@ -86,13 +86,13 @@ def fetch_and_save_raw_weather(
         f"{len(minutely_15_dataframe)} rekordów."
     )
 
-    # 5. Utworzenie folderu RAW
+    # Utworzenie folderu RAW
     DATA_PIPELINE_DIR = Path(__file__).resolve().parent.parent
 
     raw_dir = DATA_PIPELINE_DIR / "raw"
     raw_dir.mkdir(parents=True, exist_ok=True)
 
-    # 6. Nazwa pliku
+    # Nazwa pliku
     timestamp = datetime.now(timezone.utc).strftime(
         "%Y%m%d_%H%M%S"
     )
@@ -100,7 +100,7 @@ def fetch_and_save_raw_weather(
     raw_filename = f"weather_raw.json"
     raw_filepath = raw_dir / raw_filename
 
-    # 7. Zapis danych do JSON
+    #zapisa danych do json
     minutely_15_dataframe.to_json(
         raw_filepath,
         orient="records",
@@ -116,7 +116,7 @@ def fetch_and_save_raw_weather(
 
     return raw_filepath, minutely_15_dataframe
 
-
+#print pierwszych i ostatnich 5 wierszy
 if __name__ == "__main__":
     sciezka, df = fetch_and_save_raw_weather()
 
