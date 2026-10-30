@@ -5,75 +5,123 @@ import pandas as pd
 import requests_cache
 from retry_requests import retry
 
-
 def fetch_and_save_raw_weather(
-    latitude: float = 52.0,
-    longitude: float = 20.0,
-    start_date: str = "2023-01-01",
+    latitude: float = 52.52,
+    longitude: float = 13.41,
+    start_date: str = "2024-06-14",
     end_date: str = "2026-10-05",
 ):
-  """Pobieranie danych z openmeteo i raw_data do data_pipeline/raw/."""
-  cache_session = requests_cache.CachedSession(".cache", expire_after=3600)
-  retry_session = retry(cache_session, retries=5, backoff_factor=0.2)
-  openmeteo = openmeteo_requests.Client(session=retry_session)
+    """Pobieranie danych co 15 minut z Open-Meteo i zapis do raw."""
 
-  url = "https://historical-forecast-api.open-meteo.com/v1/forecast"
-  params = {
-      "latitude": latitude,
-      "longitude": longitude,
-      "start_date": start_date,
-      "end_date": end_date,
-      "hourly": ["temperature_2m", "rain", "wind_speed_10m"],
-      "timezone": "auto",
-  }
+    # 1. Konfiguracja sesji
+    cache_session = requests_cache.CachedSession(
+        ".cache", expire_after=3600
+    )
+    retry_session = retry(
+        cache_session, retries=5, backoff_factor=0.2
+    )
+    openmeteo = openmeteo_requests.Client(session=retry_session)
 
-  print(
-      f"[EXTRACT] Pobieranie danych z openmeteo dla lat={latitude},"
-      f" lon={longitude}..."
-  )
-  responses = openmeteo.weather_api(url, params=params)
-  response = responses[0]
+    # 2. Parametry API
+    url = "https://historical-forecast-api.open-meteo.com/v1/forecast"
 
-  hourly = response.Hourly()
-  hourly_temperature_2m = hourly.Variables(0).ValuesAsNumpy()
-  hourly_rain = hourly.Variables(1).ValuesAsNumpy()
-  hourly_wind_speed_10m = hourly.Variables(2).ValuesAsNumpy()
+    variables = [
+        "temperature_2m",
+        "wind_speed_10m",
+        "rain",
+        "snowfall",
+        "sunshine_duration",
+        "is_day",
+        "apparent_temperature",
+        "snowfall_height",
+    ]
 
-  dates = pd.date_range(
-      start=pd.to_datetime(hourly.Time(), unit="s", utc=True),
-      end=pd.to_datetime(hourly.TimeEnd(), unit="s", utc=True),
-      freq=pd.Timedelta(seconds=hourly.Interval()),
-      inclusive="left",
-  ).tz_convert(response.Timezone().decode())
+    params = {
+        "latitude": latitude,
+        "longitude": longitude,
+        "start_date": start_date,
+        "end_date": end_date,
+        "minutely_15": variables,
+        "timezone": "Europe/Warsaw",
+    }
 
-  hourly_data = {
-      "date": dates,
-      "temperature_2m": hourly_temperature_2m,
-      "rain": hourly_rain,
-      "wind_speed_10m": hourly_wind_speed_10m,
-  }
+    print(
+        f"[EXTRACT] Pobieranie danych Open-Meteo "
+        f"od {start_date} do {end_date}..."
+    )
 
-  hourly_dataframe = pd.DataFrame(data=hourly_data)
+    responses = openmeteo.weather_api(url, params=params)
+    response = responses[0]
 
+    # 3. Odczyt danych 15-minutowych
+    minutely_15 = response.Minutely15()
 
-  # Plik w django/data_pipeline/funkcje/openmeteo.py
-  DATA_PIPELINE_DIR = Path(__file__).resolve().parent.parent
-  raw_dir = DATA_PIPELINE_DIR / "raw"
-  raw_dir.mkdir(parents=True, exist_ok=True)
+    dates = pd.date_range(
+        start=pd.to_datetime(
+            minutely_15.Time(), unit="s", utc=True
+        ),
+        end=pd.to_datetime(
+            minutely_15.TimeEnd(), unit="s", utc=True
+        ),
+        freq=pd.Timedelta(
+            seconds=minutely_15.Interval()
+        ),
+        inclusive="left",
+    ).tz_convert("Europe/Warsaw")
 
-  timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-  raw_filename = f"weather_raw_{timestamp}.json"
-  raw_filepath = raw_dir / raw_filename
+    # 4. Utworzenie DataFrame
+    minutely_15_data = {"date": dates}
 
-  hourly_dataframe.to_json(
-      raw_filepath, orient="records", date_format="iso", indent=2
-  )
+    for i, variable in enumerate(variables):
+        minutely_15_data[variable] = (
+            minutely_15.Variables(i).ValuesAsNumpy()
+        )
 
-  print(f"[EXTRACT] Zapisano surowe dane do: {raw_filepath}")
-  return raw_filepath, hourly_dataframe
+    minutely_15_dataframe = pd.DataFrame(
+        data=minutely_15_data
+    )
+
+    print(
+        f"[EXTRACT] Pobrano "
+        f"{len(minutely_15_dataframe)} rekordów."
+    )
+
+    # 5. Utworzenie folderu RAW
+    DATA_PIPELINE_DIR = Path(__file__).resolve().parent.parent
+
+    raw_dir = DATA_PIPELINE_DIR / "raw"
+    raw_dir.mkdir(parents=True, exist_ok=True)
+
+    # 6. Nazwa pliku
+    timestamp = datetime.now(timezone.utc).strftime(
+        "%Y%m%d_%H%M%S"
+    )
+
+    raw_filename = f"weather_raw.json"
+    raw_filepath = raw_dir / raw_filename
+
+    # 7. Zapis danych do JSON
+    minutely_15_dataframe.to_json(
+        raw_filepath,
+        orient="records",
+        date_format="iso",
+        date_unit="s",
+        indent=2,
+        force_ascii=False,
+    )
+
+    print(
+        f"[EXTRACT] Zapisano dane RAW do: {raw_filepath}"
+    )
+
+    return raw_filepath, minutely_15_dataframe
 
 
 if __name__ == "__main__":
-  sciezka, df = fetch_and_save_raw_weather()
-  print("\n--- Podgląd pierwszych 5 wierszy ---")
-  print(df.head())
+    sciezka, df = fetch_and_save_raw_weather()
+
+    print("\n--- Pierwsze 5 wierszy ---")
+    print(df.head())
+
+    print("\n--- Ostatnie 5 wierszy ---")
+    print(df.tail())
