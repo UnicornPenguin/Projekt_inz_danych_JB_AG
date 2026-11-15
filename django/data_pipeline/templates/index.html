@@ -46,6 +46,26 @@
       </div>
     </header>
 
+    <!-- PRZYCISK -->
+    <section class="card bg-slate-900 border border-slate-800 p-5 rounded-2xl mb-6">
+    <h3 class="font-bold text-white text-base mb-2">Sterowanie Potokiem Danych (Pipeline)</h3>
+    <p class="text-xs text-slate-400 mb-4">Uruchom pobieranie, czyszczenie i generowanie pliku CSV dla systemu:</p>
+    
+    <form method="post">
+        {% csrf_token %}
+        <button type="submit" name="action" value="run_full_pipeline" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl transition shadow-lg flex items-center gap-2">
+            Uruchom proces (Pobierz → Wyczyść → Scal do CSV)
+        </button>
+    </form>
+
+    {% if message %}
+        <div class="mt-3 text-xs text-emerald-400 font-mono">{{ message }}</div>
+    {% endif %}
+    {% if error %}
+        <div class="mt-3 text-xs text-red-400 font-mono">{{ error }}</div>
+    {% endif %}
+</section>
+
     <!-- BANERY ALERTÓW RYNKOWYCH (DODATKOWA WARTOŚĆ BIZNESOWA) -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <!-- Alert Cen Ujemnych / Taniej Energii -->
