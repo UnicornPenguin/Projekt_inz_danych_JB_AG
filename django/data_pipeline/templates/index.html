@@ -1,401 +1,370 @@
+
 <!DOCTYPE html>
 <html lang="pl">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>KSE Market & Weather Intelligence • Decision Support System</title>
-  <!-- Tailwind CSS -->
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>KSE Weather & Electricity Price Intelligence</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Chart.js do zaawansowanych wykresów -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen font-sans p-4 sm:p-6 lg:p-8">
-  <div class="max-w-7xl mx-auto space-y-6">
+<body class="bg-slate-950 text-slate-100 min-h-screen p-4 sm:p-7 font-sans">
+<main class="max-w-7xl mx-auto space-y-6">
+  <header class="flex flex-wrap items-start justify-between gap-4 border-b border-slate-800 pb-6">
+    <div>
+      <span class="text-xs font-semibold tracking-widest uppercase text-emerald-400">Decision Support System · PSE + Open-Meteo</span>
+      <h1 class="text-3xl font-extrabold mt-2">KSE Weather & Electricity Price Intelligence</h1>
+      <p class="text-sm text-slate-400 mt-1">Analiza zależności między pogodą a rynkowymi cenami energii (RCE)</p>
+    </div>
+    <div class="text-xs text-slate-400 bg-slate-900 border border-slate-800 rounded-xl p-4">
+      <p>Źródło: <strong class="text-slate-200">{{ source_file|default:"Brak danych" }}</strong></p>
+      <p>Zakres: {{ first_updated|default:"—" }} – {{ last_updated|default:"—" }}</p>
+      <p>Liczba rekordów CSV: {{ raw_rows|default:"—" }} · Liczba godzin: {{ hourly_rows|default:"—" }}</p>
+    </div>
+  </header>
 
-    <!-- NAGŁÓWEK I STATUS PIPELINE'U -->
-    <header class="flex flex-col lg:flex-row lg:items-center justify-between pb-6 border-b border-slate-800 gap-4">
-      <div>
-        <div class="flex items-center gap-2 flex-wrap">
-          <span class="px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded">
-            Decision Support System
-          </span>
-          <span class="text-xs text-slate-400">• Energetyka & Meteorologia (PSE + Open-Meteo)</span>
-          <span class="text-xs text-slate-500">| Serving Layer: Parquet / SQLite</span>
-        </div>
-        <h1 class="text-3xl font-black text-white tracking-tight mt-1">
-          KSE Market & Wind Generation Intelligence
-        </h1>
-        <p class="text-sm text-slate-400 mt-1">
-          Wsparcie decyzji arbitrażu cenowego, ryzyka redukcji OZE (curtailment) oraz bilansowania KSE.
-        </p>
-      </div>
-
-      <!-- Kapsułki stanu potoku inżynierskiego -->
-      <div class="flex items-center gap-3">
-        <div class="bg-slate-900 border border-slate-800 px-3 py-2 rounded-xl text-right">
-          <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Testy Jakości (DQ)</div>
-          <div class="text-xs font-semibold text-emerald-400 flex items-center gap-1.5 justify-end mt-0.5">
-            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            5 / 5 Sprawdzone (Passed)
-          </div>
-        </div>
-        <div class="bg-slate-900 border border-slate-800 px-3 py-2 rounded-xl text-right">
-          <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Ostatni zrzut API</div>
-          <div class="text-xs font-mono text-slate-300 mt-0.5">{{ last_updated|default:"2026-10-05 20:00 UTC" }}</div>
-        </div>
-      </div>
-    </header>
-
-    <!-- PRZYCISK -->
-    <section class="card bg-slate-900 border border-slate-800 p-5 rounded-2xl mb-6">
+  <!-- PRZYCISK -->
+  <section class="card bg-slate-900 border border-slate-800 p-5 rounded-2xl mb-6">
     <h3 class="font-bold text-white text-base mb-2">Sterowanie Potokiem Danych (Pipeline)</h3>
     <p class="text-xs text-slate-400 mb-4">Uruchom pobieranie, czyszczenie i generowanie pliku CSV dla systemu:</p>
-    
     <form method="post">
-        {% csrf_token %}
-        <button type="submit" name="action" value="run_full_pipeline" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl transition shadow-lg flex items-center gap-2">
-            Uruchom proces (Pobierz → Wyczyść → Scal do CSV)
-        </button>
+      {% csrf_token %}
+      <button type="submit" name="action" value="run_full_pipeline" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl transition shadow-lg flex items-center gap-2">
+        Uruchom proces (Pobierz → Wyczyść → Scal do CSV)
+      </button>
     </form>
+    {% if message %}<div class="mt-3 text-xs text-emerald-400 font-mono">{{ message }}</div>{% endif %}
+    {% if error %}<div class="mt-3 text-xs text-red-400 font-mono">{{ error }}</div>{% endif %}
+  </section>
 
-    {% if message %}
-        <div class="mt-3 text-xs text-emerald-400 font-mono">{{ message }}</div>
-    {% endif %}
-    {% if error %}
-        <div class="mt-3 text-xs text-red-400 font-mono">{{ error }}</div>
-    {% endif %}
-</section>
-
-    <!-- BANERY ALERTÓW RYNKOWYCH (DODATKOWA WARTOŚĆ BIZNESOWA) -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <!-- Alert Cen Ujemnych / Taniej Energii -->
-      <div class="p-4 rounded-xl border border-sky-500/30 bg-sky-500/10 flex items-start gap-3">
-        <div class="p-2 rounded-lg bg-sky-500/20 text-sky-400 font-bold text-lg leading-none">⚡</div>
-        <div>
-          <h4 class="text-sm font-semibold text-sky-200">Okres Doliny Cenowej / Nadpodaż Wiatrowa</h4>
-          <p class="text-xs text-slate-300 mt-0.5">
-            Wysoki udział generacji wiatrowej (&gt; 35% zapotrzebowania KSE). Rekomendacja: przesunięcie energochłonnych procesów na godziny 13:00–16:00.
-          </p>
-        </div>
-      </div>
-
-      <!-- Alert Bilansowania / Rezerwy Mocy -->
-      <div class="p-4 rounded-xl border border-amber-500/30 bg-amber-500/10 flex items-start gap-3">
-        <div class="p-2 rounded-lg bg-amber-500/20 text-amber-400 font-bold text-lg leading-none">⚠️</div>
-        <div>
-          <h4 class="text-sm font-semibold text-amber-200">Średnie Ryzyko Redukcji OZE (Curtailment Risk)</h4>
-          <p class="text-xs text-slate-300 mt-0.5">
-            Lokalne węzły przesyłowe na północy kraju mogą zgłaszać przeciążenia przy podmuchach &gt; 55 km/h.
-          </p>
-        </div>
-      </div>
+  {% if data_warning %}
+    <div class="border border-amber-500/40 bg-amber-950/40 text-amber-200 rounded-xl p-5">{{ data_warning }}</div>
+  {% else %}
+  <section class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+      <p class="text-xs text-slate-400 uppercase">Ostatnia cena RCE</p>
+      <p class="text-2xl font-bold text-emerald-400 mt-2">{{ latest_price|default_if_none:"—" }} <span class="text-sm text-slate-400">PLN/MWh</span></p>
     </div>
-
-    <!-- KARTY GŁÓWNYCH WSKAŹNIKÓW (KPI) -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      
-      <div class="bg-slate-900/90 border border-slate-800 p-5 rounded-2xl shadow-xl">
-        <div class="flex items-center justify-between text-xs text-slate-400">
-          <span class="uppercase tracking-wider font-semibold">Zapotrzebowanie KSE</span>
-          <span class="text-amber-400 font-mono">PSE</span>
-        </div>
-        <div class="text-2xl font-black text-white mt-2">
-          {{ latest_demand|default:"21 840" }} <span class="text-sm font-normal text-slate-400">MW</span>
-        </div>
-        <p class="text-xs text-slate-500 mt-1">Szczyt wieczorny: 23 100 MW</p>
-      </div>
-
-      <div class="bg-slate-900/90 border border-slate-800 p-5 rounded-2xl shadow-xl">
-        <div class="flex items-center justify-between text-xs text-slate-400">
-          <span class="uppercase tracking-wider font-semibold">Generacja Wiatrowa</span>
-          <span class="text-sky-400 font-mono">OZE</span>
-        </div>
-        <div class="text-2xl font-black text-sky-400 mt-2">
-          {{ latest_wind_gen|default:"5 230" }} <span class="text-sm font-normal text-slate-400">MW</span>
-        </div>
-        <p class="text-xs text-slate-500 mt-1">Pokrycie miksu: <strong class="text-emerald-400">23.9%</strong></p>
-      </div>
-
-      <div class="bg-slate-900/90 border border-slate-800 p-5 rounded-2xl shadow-xl">
-        <div class="flex items-center justify-between text-xs text-slate-400">
-          <span class="uppercase tracking-wider font-semibold">Śr. Ważona Prędkość Wiatru</span>
-          <span class="text-indigo-400 font-mono">Open-Meteo</span>
-        </div>
-        <div class="text-2xl font-black text-indigo-400 mt-2">
-          {{ avg_wind_speed|default:"28.4" }} <span class="text-sm font-normal text-slate-400">km/h</span>
-        </div>
-        <p class="text-xs text-slate-500 mt-1">Węzły: Pomorze / Wielkopolska</p>
-      </div>
-
-      <div class="bg-slate-900/90 border border-slate-800 p-5 rounded-2xl shadow-xl">
-        <div class="flex items-center justify-between text-xs text-slate-400">
-          <span class="uppercase tracking-wider font-semibold">Cena Rozliczeniowa RBR</span>
-          <span class="text-emerald-400 font-mono">Rynek</span>
-        </div>
-        <div class="text-2xl font-black text-emerald-400 mt-2">
-          {{ latest_rbr_price|default:"312.40" }} <span class="text-sm font-normal text-slate-400">PLN/MWh</span>
-        </div>
-        <p class="text-xs text-slate-500 mt-1">Efekt Merit Order: spadek o 18%</p>
-      </div>
-
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+      <p class="text-xs text-slate-400 uppercase">Temperatura</p>
+      <p class="text-2xl font-bold mt-2">{{ latest_temp|default_if_none:"—" }} <span class="text-sm text-slate-400">°C</span></p>
     </div>
-
-    <!-- SEKCJA WYKRESÓW INTERAKTYWNYCH -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      
-      <!-- Wykres 1: Podwójna oś – Wiatr vs Generacja z OZE -->
-      <div class="lg:col-span-2 bg-slate-900/90 border border-slate-800 p-5 rounded-2xl shadow-xl">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
-          <div>
-            <h3 class="font-bold text-slate-100 text-base">Dynamika Generacji Wiatrowej i Warunków Pogodowych</h3>
-            <p class="text-xs text-slate-400">Zestawienie czasowe (Granulacja godzinowa)</p>
-          </div>
-          <span class="text-xs font-mono bg-slate-800 px-2.5 py-1 rounded text-slate-300">serving_market_weather</span>
-        </div>
-        <div class="h-72">
-          <canvas id="generationWeatherChart"></canvas>
-        </div>
-      </div>
-
-      <!-- Wykres 2: Udział w miksie wytwórczym (Merit Order) -->
-      <div class="bg-slate-900/90 border border-slate-800 p-5 rounded-2xl shadow-xl flex flex-col justify-between">
-        <div>
-          <h3 class="font-bold text-slate-100 text-base mb-1">Chwilowy Miks Energetyczny KSE</h3>
-          <p class="text-xs text-slate-400 mb-4">Wypieranie źródeł konwencjonalnych przez OZE</p>
-          <div class="h-56 relative flex items-center justify-center">
-            <canvas id="energyMixChart"></canvas>
-          </div>
-        </div>
-        <div class="border-t border-slate-800 pt-3 text-xs text-slate-400 flex justify-between">
-          <span>OZE w systemie: <strong class="text-emerald-400">31.2%</strong></span>
-          <span>Emisyjność: <strong class="text-amber-400">620 g CO2/kWh</strong></span>
-        </div>
-      </div>
-
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+      <p class="text-xs text-slate-400 uppercase">Prędkość wiatru</p>
+      <p class="text-2xl font-bold text-sky-400 mt-2">{{ latest_wind|default_if_none:"—" }} <span class="text-sm text-slate-400">km/h</span></p>
     </div>
-
-    <!-- ROZSZERZENIE PROJEKTU: SYMULATOR SCENARIUSZA WHAT-IF (PREDYKCJA MOCY) -->
-    <div class="bg-gradient-to-r from-slate-900 via-slate-900 to-indigo-950/40 border border-indigo-500/30 p-6 rounded-2xl shadow-xl">
-      <div class="max-w-2xl">
-        <span class="text-xs font-bold uppercase tracking-wider text-indigo-400">Rozszerzenie Analityczne (What-If Simulation)</span>
-        <h3 class="text-xl font-bold text-white mt-1">Symulator Generacji z Farm Wiatrowych</h3>
-        <p class="text-xs text-slate-300 mt-1">
-          Aproksymacja krzywej mocy turbin w skali KSE na podstawie zadanej prędkości wiatru:
-          $P(v) \propto v^3$ (do progu nasycenia turbin).
-        </p>
-      </div>
-
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6 items-center">
-        <!-- Suwak symulacji -->
-        <div class="md:col-span-2 space-y-3 bg-slate-950/60 p-4 rounded-xl border border-slate-800">
-          <div class="flex justify-between items-center text-xs">
-            <label for="windSlider" class="font-medium text-slate-300">Symulowana średnia prędkość wiatru w Polsce:</label>
-            <span id="sliderValue" class="font-mono text-base font-bold text-indigo-400">25 km/h</span>
-          </div>
-          <input 
-            type="range" 
-            id="windSlider" 
-            min="0" 
-            max="60" 
-            value="25" 
-            step="1"
-            class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500"
-          >
-          <div class="flex justify-between text-[10px] text-slate-500">
-            <span>0 km/h (Flauta)</span>
-            <span>20 km/h</span>
-            <span>40 km/h (Wysoka wydajność)</span>
-            <span>60 km/h (Wyłączenia awaryjne)</span>
-          </div>
-        </div>
-
-        <!-- Wynik modelu -->
-        <div class="bg-indigo-500/10 border border-indigo-500/30 p-4 rounded-xl text-center">
-          <span class="text-[11px] uppercase tracking-wider text-indigo-300 font-semibold">Prognozowana Moc KSE</span>
-          <div class="text-3xl font-black text-white mt-1" id="predictedPower">4 350 MW</div>
-          <span class="text-[11px] text-emerald-400 font-medium block mt-1" id="predictedImpact">Spadek ceny RBR: ~15%</span>
-        </div>
-      </div>
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+      <p class="text-xs text-slate-400 uppercase">Mediana ceny RCE</p>
+      <p class="text-2xl font-bold mt-2">{{ price_summary.median|default_if_none:"—" }} <span class="text-sm text-slate-400">PLN/MWh</span></p>
     </div>
+  </section>
 
-    <!-- TABELA DANYCH SERVING LAYER -->
-    <div class="bg-slate-900/90 rounded-2xl border border-slate-800 shadow-xl overflow-hidden">
-      <div class="p-5 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-        <div>
-          <h3 class="font-bold text-slate-100 text-base">Zintegrowane Dane Rynkowo-Pogodowe (Serving Table)</h3>
-          <p class="text-xs text-slate-400 mt-0.5">Dane po testach jakości, przygotowane dla modeli analitycznych</p>
-        </div>
-        <span class="text-xs text-slate-400">Pokazano 5 ostatnich odczytów</span>
-      </div>
+  <section class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+    <!-- PYTANIE 1 -->
+    <article class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3">
+      <p class="text-xs text-indigo-300 font-semibold">PYTANIE 1</p>
+      <h2 class="text-lg font-bold">Temperatura a poziom cen RCE</h2>
+      <p class="text-xs text-slate-400">W jakim stopniu temperatura powietrza jest powiązana ze zmianami cen energii?</p>
+      <p class="text-xl font-bold">Korelacja r = {{ temp_corr|default_if_none:"—" }}
+        <span class="text-xs text-slate-400 font-normal">(n={{ temp_n }})</span>
+      </p>
+      <div class="h-64"><canvas id="tempChart"></canvas></div>
       <div class="overflow-x-auto">
-        <table class="w-full text-left text-xs text-slate-300">
-          <thead class="bg-slate-950/80 uppercase font-semibold text-slate-400 tracking-wider border-b border-slate-800">
-            <tr>
-              <th class="px-5 py-3.5">Timestamp (UTC)</th>
-              <th class="px-5 py-3.5">Popyt PSE (MW)</th>
-              <th class="px-5 py-3.5">Moc Wiatru (MW)</th>
-              <th class="px-5 py-3.5">Moc PV (MW)</th>
-              <th class="px-5 py-3.5">Wiatr (km/h)</th>
-              <th class="px-5 py-3.5">Temp (°C)</th>
-              <th class="px-5 py-3.5">Cena RBR (PLN)</th>
+        <table class="w-full text-xs">
+          <thead>
+            <tr class="text-slate-400 border-b border-slate-700">
+              <th class="py-2 text-left">Temperatura</th>
+              <th>Mediana RCE</th>
+              <th>Średnia RCE</th>
+              <th>Godzin</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-slate-800/60 font-mono">
-            {% if table_records %}
-              {% for row in table_records %}
-              <tr class="hover:bg-slate-800/40 transition">
-                <td class="px-5 py-3 text-slate-200">{{ row.timestamp }}</td>
-                <td class="px-5 py-3 text-amber-400 font-semibold">{{ row.demand_mw }}</td>
-                <td class="px-5 py-3 text-sky-400 font-semibold">{{ row.wind_mw }}</td>
-                <td class="px-5 py-3 text-yellow-300">{{ row.pv_mw }}</td>
-                <td class="px-5 py-3">{{ row.wind_speed }}</td>
-                <td class="px-5 py-3">{{ row.temp_c }}</td>
-                <td class="px-5 py-3 text-emerald-400">{{ row.rbr_price }}</td>
-              </tr>
-              {% endfor %}
-            {% else %}
-              <!-- Domyślne wartości podglądu -->
-              <tr class="hover:bg-slate-800/40 transition">
-                <td class="px-5 py-3 text-slate-200">2026-10-05 16:00</td>
-                <td class="px-5 py-3 text-amber-400 font-semibold">22 150</td>
-                <td class="px-5 py-3 text-sky-400 font-semibold">4 920</td>
-                <td class="px-5 py-3 text-yellow-300">310</td>
-                <td class="px-5 py-3">28.1</td>
-                <td class="px-5 py-3">14.2</td>
-                <td class="px-5 py-3 text-emerald-400">298.50</td>
-              </tr>
-              <tr class="hover:bg-slate-800/40 transition">
-                <td class="px-5 py-3 text-slate-200">2026-10-05 17:00</td>
-                <td class="px-5 py-3 text-amber-400 font-semibold">22 800</td>
-                <td class="px-5 py-3 text-sky-400 font-semibold">5 110</td>
-                <td class="px-5 py-3 text-yellow-300">45</td>
-                <td class="px-5 py-3">29.4</td>
-                <td class="px-5 py-3">13.8</td>
-                <td class="px-5 py-3 text-emerald-400">315.20</td>
-              </tr>
-              <tr class="hover:bg-slate-800/40 transition">
-                <td class="px-5 py-3 text-slate-200">2026-10-05 18:00</td>
-                <td class="px-5 py-3 text-amber-400 font-semibold">23 400</td>
-                <td class="px-5 py-3 text-sky-400 font-semibold">5 340</td>
-                <td class="px-5 py-3 text-yellow-300">0</td>
-                <td class="px-5 py-3">31.0</td>
-                <td class="px-5 py-3">12.9</td>
-                <td class="px-5 py-3 text-emerald-400">340.00</td>
-              </tr>
-            {% endif %}
+          <tbody>
+            {% for p in temperature_bands %}
+            <tr class="border-b border-slate-800">
+              <td class="py-2">{{ p.label }}</td>
+              <td class="text-center">{{ p.median|default_if_none:"—" }}</td>
+              <td class="text-center">{{ p.mean|default_if_none:"—" }}</td>
+              <td class="text-center">{{ p.count }}</td>
+            </tr>
+            {% endfor %}
           </tbody>
         </table>
       </div>
+    </article>
+
+    <!-- PYTANIE 2 -->
+    <article class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3">
+      <p class="text-xs text-indigo-300 font-semibold">PYTANIE 2</p>
+      <h2 class="text-lg font-bold">Prędkość wiatru a cena i zmienność RCE</h2>
+      <p class="text-xs text-slate-400">Czy wyższa prędkość wiatru współwystępuje z niższymi lub bardziej zmiennymi cenami?</p>
+      <p class="text-xl font-bold">Korelacja r = {{ wind_corr|default_if_none:"—" }}
+        <span class="text-xs text-slate-400 font-normal">(n={{ wind_n }})</span>
+      </p>
+      <div class="h-64"><canvas id="windChart"></canvas></div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-xs">
+          <thead>
+            <tr class="text-slate-400 border-b border-slate-700">
+              <th class="py-2 text-left">Wiatr</th>
+              <th>Średnia RCE</th>
+              <th>Odch. stand.</th>
+              <th>Godzin</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in wind_bands %}
+            <tr class="border-b border-slate-800">
+              <td class="py-2">{{ p.label }}</td>
+              <td class="text-center">{{ p.mean|default_if_none:"—" }}</td>
+              <td class="text-center">{{ p.std|default_if_none:"—" }}</td>
+              <td class="text-center">{{ p.count }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </article>
+
+    <!-- PYTANIE 3 -->
+    <article class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3">
+      <p class="text-xs text-indigo-300 font-semibold">PYTANIE 3</p>
+      <h2 class="text-lg font-bold">Usłonecznienie a okresy niskich cen</h2>
+      <p class="text-xs text-slate-400">Czy w godzinach dziennych ceny RCE różnią się między godzinami z usłonecznieniem i bez niego?</p>
+      <p class="text-xl font-bold">Korelacja r = {{ sun_corr|default_if_none:"—" }}
+        <span class="text-xs text-slate-400 font-normal">(n={{ sun_n }})</span>
+      </p>
+      <div class="h-64"><canvas id="sunChart"></canvas></div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-xs">
+          <thead>
+            <tr class="text-slate-400 border-b border-slate-700">
+              <th class="py-2 text-left">Warunek</th>
+              <th>Mediana RCE</th>
+              <th>Średnia RCE</th>
+              <th>Godzin</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in sun_groups %}
+            <tr class="border-b border-slate-800">
+              <td class="py-2">{{ p.label }}</td>
+              <td class="text-center">{{ p.median|default_if_none:"—" }}</td>
+              <td class="text-center">{{ p.mean|default_if_none:"—" }}</td>
+              <td class="text-center">{{ p.count }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <p class="text-xs text-slate-500">{{ sun_unit_note }} Analiza ograniczona do godzin 07:00–17:59 UTC.</p>
+    </article>
+
+    <!-- PYTANIE 4 -->
+    <article class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3">
+      <p class="text-xs text-indigo-300 font-semibold">PYTANIE 4</p>
+      <h2 class="text-lg font-bold">Dobowa zmienność cen RCE</h2>
+      <p class="text-xs text-slate-400">Jak zmienia się typowy poziom i zmienność cen w zależności od godziny doby?</p>
+      <div class="h-80"><canvas id="profileChart"></canvas></div>
+      <p class="text-xs text-slate-500">Wykres przedstawia średnią i medianę dla każdej godziny UTC. Zmienność można oceniać także na podstawie odchylenia standardowego.</p>
+    </article>
+  </section>
+
+  <!-- OSTATNIE 7 DNI -->
+  <section class="bg-slate-900 border border-slate-800 p-5 rounded-2xl space-y-3">
+    <h2 class="text-lg font-bold">Ostatnie 7 dni danych godzinowych</h2>
+    <div class="h-72"><canvas id="timelineChart"></canvas></div>
+  </section>
+
+  <!-- TABELA SERVING -->
+  <section class="bg-slate-900 border border-slate-800 p-5 rounded-2xl space-y-3">
+    <h2 class="text-lg font-bold">Ostatnie 10 rekordów warstwy Serving</h2>
+    <div class="overflow-x-auto">
+      <table class="w-full text-xs text-left">
+        <thead class="border-b border-slate-700 text-slate-400">
+          <tr>
+            <th class="py-3">Godzina UTC</th>
+            <th>Temperatura (°C)</th>
+            <th>Wiatr (km/h)</th>
+            <th>Sunshine</th>
+            <th>RCE (PLN/MWh)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in table_records %}
+          <tr class="border-b border-slate-800">
+            <td class="py-3">{{ r.time }}</td>
+            <td>{{ r.temperature|default_if_none:"—" }}</td>
+            <td>{{ r.windspeed|default_if_none:"—" }}</td>
+            <td>{{ r.sunshine|default_if_none:"—" }}</td>
+            <td>{{ r.price|default_if_none:"—" }}</td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="5" class="py-4 text-slate-400">Brak rekordów.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
+  </section>
 
-  </div>
+  <p class="text-xs text-slate-500 pb-6">
+    {{ method_note }}
+    Dane pogodowe z jednej lokalizacji nie są krajową średnią meteorologiczną.
+    Współczynniki korelacji opisują współwystępowanie, nie przyczynowość.
+  </p>
 
-  <!-- SKRYPTY LOGIKI WYKRESÓW I SYMULATORA -->
+  <!-- DANE Z DJANGO -->
+  {{ temp_scatter|json_script:"temp-points" }}
+  {{ wind_scatter|json_script:"wind-points" }}
+  {{ sun_groups|json_script:"sun-groups" }}
+  {{ day_profile|json_script:"day-profile" }}
+  {{ timeline|json_script:"timeline-data" }}
+
+  <!-- WYKRESY CHART.JS -->
   <script>
-    // 1. Wykres liniowy: Wiatr vs Generacja vs Zapotrzebowanie
-    const ctxGen = document.getElementById('generationWeatherChart').getContext('2d');
-    new Chart(ctxGen, {
-      type: 'line',
-      data: {
-        labels: ['10:00', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00'],
-        datasets: [
-          {
-            label: 'Generacja wiatrowa (MW)',
-            data: [3200, 3900, 4600, 5100, 5300, 4900, 4200],
-            borderColor: '#38bdf8',
-            backgroundColor: 'rgba(56, 189, 248, 0.1)',
-            yAxisID: 'yMW',
-            fill: true,
-            tension: 0.35
-          },
-          {
-            label: 'Prędkość wiatru (km/h)',
-            data: [18, 22, 26, 30, 32, 29, 24],
-            borderColor: '#818cf8',
-            borderDash: [4, 4],
-            yAxisID: 'ySpeed',
-            tension: 0.35
-          }
-        ]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { labels: { color: '#94a3b8', font: { size: 11 } } }
+    const read = id => JSON.parse(document.getElementById(id).textContent);
+
+    const t = read('temp-points');
+    const w = read('wind-points');
+    const sun = read('sun-groups');
+    const profile = read('day-profile');
+    const timeline = read('timeline-data');
+
+    Chart.defaults.color = '#94a3b8';
+
+    const base = {
+      responsive: true,
+      maintainAspectRatio: false
+    };
+
+    function scatter(id, data, label, xTitle) {
+      if (!data.length) return;
+
+      new Chart(document.getElementById(id), {
+        type: 'scatter',
+        data: {
+          datasets: [{
+            label,
+            data,
+            pointRadius: 2,
+            backgroundColor: '#818cf8'
+          }]
         },
-        scales: {
-          x: { ticks: { color: '#64748b' }, grid: { color: '#1e293b' } },
-          yMW: {
-            type: 'linear',
-            position: 'left',
-            ticks: { color: '#38bdf8' },
-            grid: { color: '#1e293b' },
-            title: { display: true, text: 'Moc (MW)', color: '#38bdf8' }
-          },
-          ySpeed: {
-            type: 'linear',
-            position: 'right',
-            ticks: { color: '#818cf8' },
-            grid: { drawOnChartArea: false },
-            title: { display: true, text: 'Prędkość wiatru (km/h)', color: '#818cf8' }
+        options: {
+          ...base,
+          scales: {
+            x: {
+              title: {
+                display: true,
+                text: xTitle
+              }
+            },
+            y: {
+              title: {
+                display: true,
+                text: 'RCE (PLN/MWh)'
+              }
+            }
           }
         }
-      }
-    });
+      });
+    }
 
-    // 2. Wykres kołowy: Miks KSE
-    const ctxMix = document.getElementById('energyMixChart').getContext('2d');
-    new Chart(ctxMix, {
-      type: 'doughnut',
-      data: {
-        labels: ['Węgiel kamienny/brunatny', 'Wiatr (OZE)', 'Fotowoltaika (PV)', 'Gaz', 'Inne'],
-        datasets: [{
-          data: [58, 24, 7, 8, 3],
-          backgroundColor: ['#475569', '#38bdf8', '#facc15', '#fb923c', '#a855f7'],
-          borderWidth: 0
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { position: 'bottom', labels: { color: '#94a3b8', boxWidth: 10, font: { size: 10 } } }
+    // TEMPERATURA
+    scatter(
+      'tempChart',
+      t,
+      'Temperatura a RCE',
+      'Temperatura (°C)'
+    );
+
+    // WIATR
+    scatter(
+      'windChart',
+      w,
+      'Wiatr a RCE',
+      'Prędkość wiatru (km/h)'
+    );
+
+    // USŁONECZNIENIE
+    if (sun.some(x => x.count > 0)) {
+      new Chart(document.getElementById('sunChart'), {
+        type: 'bar',
+        data: {
+          labels: sun.map(x => x.label),
+          datasets: [
+            {
+              label: 'Średnia RCE',
+              data: sun.map(x => x.mean),
+              backgroundColor: '#facc15'
+            },
+            {
+              label: 'Mediana RCE',
+              data: sun.map(x => x.median),
+              backgroundColor: '#38bdf8'
+            }
+          ]
         },
-        cutout: '70%'
-      }
-    });
+        options: base
+      });
+    }
 
-    // 3. Logika Symulatora What-If (Krzywa mocy wiatru w czasie rzeczywistym)
-    const slider = document.getElementById('windSlider');
-    const sliderVal = document.getElementById('sliderValue');
-    const predPower = document.getElementById('predictedPower');
-    const predImpact = document.getElementById('predictedImpact');
+    // DOBOWY PROFIL CEN
+    if (profile.some(x => x.count > 0)) {
+      new Chart(document.getElementById('profileChart'), {
+        type: 'line',
+        data: {
+          labels: profile.map(x => x.hour),
+          datasets: [
+            {
+              label: 'Średnia',
+              data: profile.map(x => x.mean),
+              borderColor: '#34d399',
+              pointRadius: 1,
+              tension: 0.25
+            },
+            {
+              label: 'Mediana',
+              data: profile.map(x => x.median),
+              borderColor: '#818cf8',
+              pointRadius: 1,
+              tension: 0.25
+            },
+            {
+              label: 'Odchylenie standardowe',
+              data: profile.map(x => x.std),
+              borderColor: '#f59e0b',
+              pointRadius: 1,
+              borderDash: [4, 4]
+            }
+          ]
+        },
+        options: base
+      });
+    }
 
-    slider.addEventListener('input', function() {
-      const v = parseFloat(this.value);
-      sliderVal.textContent = `${v} km/h`;
-
-      let power = 0;
-      let impactText = "";
-
-      // Fizyczny model krzywej mocy farm: cut-in ~10 km/h, rated ~45 km/h, cut-out ~90 km/h
-      if (v < 10) {
-        power = Math.round(v * 40);
-        impactText = "Flauta wiatrowa – konieczność uruchomienia drogiego bloku węglowego/gazowego.";
-      } else if (v <= 45) {
-        // Wzrost nieliniowy
-        power = Math.round(400 + Math.pow(v, 2.3) * 1.3);
-        impactText = v > 30 ? "Silny efekt Merit Order: presja na spadek cen bilansujących (RBR)." : "Standardowa generacja w normie dziedzinowej.";
-      } else {
-        // Blisko mocy maksymalnej lub redukcje
-        power = 7800;
-        impactText = "Uwaga: Możliwe awaryjne odłączenia farm (curtailment) ze względów sieciowych!";
-      }
-
-      predPower.textContent = `${power.toLocaleString()} MW`;
-      predImpact.textContent = impactText;
-    });
+    // OSTATNIE 7 DNI
+    if (timeline.labels.length) {
+      new Chart(document.getElementById('timelineChart'), {
+        type: 'line',
+        data: {
+          labels: timeline.labels,
+          datasets: [{
+            label: 'RCE (PLN/MWh)',
+            data: timeline.price,
+            borderColor: '#34d399',
+            pointRadius: 0,
+            tension: 0.1
+          }]
+        },
+        options: base
+      });
+    }
   </script>
+
+  {% endif %}
+</main>
 </body>
 </html>
